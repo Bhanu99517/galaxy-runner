@@ -1,0 +1,6 @@
+{
+  "name": "Galaxy Runner - Python Powered",
+  "description": "A high-speed 3D neon runner with galaxy-themed levels and stats managed by a Python backend.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
