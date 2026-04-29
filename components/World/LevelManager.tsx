@@ -459,7 +459,20 @@ export const LevelManager: React.FC = () => {
                         (window as any).isFetchingLevel = false;
                     })
                     .catch(e => {
-                        console.error("Python level fetch failed:", e);
+                        console.error("Python level fetch failed, using client-side fallback:", e);
+                        
+                        // FALLBACK: Client-side obstacle generation
+                        const laneCount = 3; // Default or from store
+                        const lane = Math.floor(Math.random() * 3) - 1; // Simple random lane
+                        objectsRef.current.push({
+                            id: uuidv4(),
+                            type: ObjectType.OBSTACLE,
+                            position: [lane * LANE_WIDTH, OBSTACLE_HEIGHT / 2, furthestZ - 15],
+                            active: true,
+                            color: '#ff0054'
+                        });
+                        setRenderTrigger(t => t + 1);
+                        
                         (window as any).isFetchingLevel = false;
                     });
              }

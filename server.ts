@@ -16,6 +16,11 @@ async function startServer() {
       let data = '';
       let error = '';
 
+      pythonProcess.on('error', (err) => {
+        console.error('Failed to start Python process. Make sure python3 is installed and in your PATH.');
+        reject(new Error(`Failed to start Python process: ${err.message}`));
+      });
+
       pythonProcess.stdout.on('data', (chunk) => {
         data += chunk.toString();
       });
