@@ -402,12 +402,14 @@ export const LevelManager: React.FC = () => {
         furthestZ = -20;
     }
 
-    // Only fetch new obstacles if we have space out in the distance
     if (furthestZ > -SPAWN_DISTANCE) {
+         // Formula to maintain gap based on speed
+         const minGap = 12 + (speed * 0.4); 
+         const spawnZ = Math.min(furthestZ - minGap, -SPAWN_DISTANCE);
+         
          const isLetterDue = distanceTraveled.current >= nextLetterDistance.current;
 
          if (isLetterDue) {
-             // Letters remain client-managed for now to ensure game progression
              const lane = getRandomLane(laneCount);
              const target = ['G','A','L','A','X','Y'];
              const availableIndices = target.map((_, i) => i).filter(i => !collectedLetters.includes(i));
@@ -418,7 +420,7 @@ export const LevelManager: React.FC = () => {
                  keptObjects.push({
                     id: uuidv4(),
                     type: ObjectType.LETTER,
-                    position: [lane * LANE_WIDTH, 1.0, furthestZ - 10], 
+                    position: [lane * LANE_WIDTH, 1.0, spawnZ], 
                     active: true,
                     color: GALAXY_COLORS[chosenIndex],
                     value: val,
@@ -427,55 +429,57 @@ export const LevelManager: React.FC = () => {
                  nextLetterDistance.current += getLetterInterval(level);
                  hasChanges = true;
              }
-         } else {
-             // FETCH FROM PYTHON BACKEND for general obstacles
-             // We use a small optimization: don't await every frame, just trigger a fetch if not busy
-             if (!(window as any).isFetchingLevel) {
-                 (window as any).isFetchingLevel = true;
-                 fetch(`/api/level?difficulty=${level}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.obstacles) {
-                            data.obstacles.forEach((obs: any) => {
-                                // Translate Python coordinates to Three.js positions
-                                // Python z is -10, -15... relative to segment start
-                                // We offset them to start at furthestZ
-                                const typeMap: Record<string, ObjectType> = {
-                                    'barrier': ObjectType.OBSTACLE,
-                                    'hazard': ObjectType.ALIEN,
-                                    'speedBoost': ObjectType.GEM
-                                };
+         } else if (Math.random() > 0.1) {
+            // Decide what to spawn
+            const isObstacle = Math.random() > 0.25;
 
-                                objectsRef.current.push({
-                                    id: uuidv4(),
-                                    type: typeMap[obs.type] || ObjectType.OBSTACLE,
-                                    position: [obs.lane * LANE_WIDTH, 1.0, furthestZ + obs.z],
-                                    active: true,
-                                    color: obs.type === 'speedBoost' ? '#00ffff' : '#ff0054'
-                                });
-                            });
-                            setRenderTrigger(t => t + 1);
-                        }
-                        (window as any).isFetchingLevel = false;
-                    })
-                    .catch(e => {
-                        console.error("Python level fetch failed, using client-side fallback:", e);
-                        
-                        // FALLBACK: Client-side obstacle generation
-                        const laneCount = 3; // Default or from store
-                        const lane = Math.floor(Math.random() * 3) - 1; // Simple random lane
-                        objectsRef.current.push({
+            if (isObstacle) {
+                const spawnAlien = level >= 2 && Math.random() < 0.2;
+
+                if (spawnAlien) {
+                    const lane = getRandomLane(laneCount);
+                    keptObjects.push({
+                        id: uuidv4(),
+                        type: ObjectType.ALIEN,
+                        position: [lane * LANE_WIDTH, 1.5, spawnZ],
+                        active: true,
+                        color: '#00ff00',
+                        hasFired: false
+                    });
+                } else {
+                    const availableLanes = [];
+                    const maxLane = Math.floor(laneCount / 2);
+                    for (let i = -maxLane; i <= maxLane; i++) availableLanes.push(i);
+                    availableLanes.sort(() => Math.random() - 0.5);
+                    
+                    let countToSpawn = 1;
+                    const p = Math.random();
+                    if (p > 0.85) countToSpawn = Math.min(3, availableLanes.length);
+                    else if (p > 0.6) countToSpawn = Math.min(2, availableLanes.length);
+
+                    for (let i = 0; i < countToSpawn; i++) {
+                        const lane = availableLanes[i];
+                        keptObjects.push({
                             id: uuidv4(),
                             type: ObjectType.OBSTACLE,
-                            position: [lane * LANE_WIDTH, OBSTACLE_HEIGHT / 2, furthestZ - 15],
+                            position: [lane * LANE_WIDTH, OBSTACLE_HEIGHT / 2, spawnZ],
                             active: true,
                             color: '#ff0054'
                         });
-                        setRenderTrigger(t => t + 1);
-                        
-                        (window as any).isFetchingLevel = false;
-                    });
-             }
+                    }
+                }
+            } else {
+                const lane = getRandomLane(laneCount);
+                keptObjects.push({
+                    id: uuidv4(),
+                    type: ObjectType.GEM,
+                    position: [lane * LANE_WIDTH, 1.2, spawnZ],
+                    active: true,
+                    color: '#00ffff',
+                    points: 50
+                });
+            }
+            hasChanges = true;
          }
     }
 

@@ -33,7 +33,6 @@ interface GameState {
   collectLetter: (index: number) => void;
   setStatus: (status: GameStatus) => void;
   setDistance: (dist: number) => void;
-  syncStats: () => Promise<void>;
   
   // Shop / Abilities
   buyItem: (type: 'DOUBLE_JUMP' | 'MAX_LIFE' | 'HEAL' | 'IMMORTAL', cost: number) => boolean;
@@ -102,23 +101,6 @@ export const useStore = create<GameState>((set, get) => ({
       set({ lives: lives - 1 });
     } else {
       set({ lives: 0, status: GameStatus.GAME_OVER, speed: 0 });
-      // Sync stats on game over
-      get().syncStats();
-    }
-  },
-
-  syncStats: async () => {
-    const { score, distance } = get();
-    try {
-        const response = await fetch('/api/stats', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ score, distance })
-        });
-        const data = await response.json();
-        console.log('Stats synchronized with Python backend:', data);
-    } catch (e) {
-        console.error('Failed to sync stats:', e);
     }
   },
 
